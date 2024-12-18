@@ -2,6 +2,8 @@
 
 import random
 
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 class TupleOutGame:
 
@@ -51,6 +53,21 @@ class TupleOutGame:
                 return player
         return None
 
+     def visualize_scores(self):
+        # Convert history to usable data for Seaborn
+        players = [entry[0] for entry in self.history]
+        scores = [entry[1] for entry in self.history]
+        turns = list(range(1, len(scores) + 1))
+         
+        # Plot the scores over turns
+        plt.figure(figsize=(10, 6))
+        sns.lineplot(x=turns, y=scores, hue=players)
+        plt.title("Player Scores Over Turns")
+        plt.xlabel("Turn Number")
+        plt.ylabel("Total Score")
+        plt.legend(title="Players")
+        plt.show()
+    
     def play_game(self):
         print(f"Welcome to the Tuple Out Dice Game! First to {self.target_score} points wins.\n")
         while True:
