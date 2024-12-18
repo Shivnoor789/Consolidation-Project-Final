@@ -1,9 +1,9 @@
 #Consolidation Project
 
 import random
-
 import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class TupleOutGame:
 
@@ -67,7 +67,19 @@ class TupleOutGame:
         plt.ylabel("Total Score")
         plt.legend(title="Players")
         plt.show()
-    
+
+    def summarize_game(self):
+    # Create a DataFrame for the game history
+    df = pd.DataFrame(self.history, columns=["Player", "Total_Score"])
+    stats = df.groupby("Player").agg(
+        Turns_Played=("Player", "count"),
+        Total_Score=("Total_Score", "max"),
+        Average_Score=("Total_Score", "mean"),
+        Tuple_Outs=("Total_Score", lambda x: (x == 0).sum())
+    )
+    print("\nGame Summary Statistics:")
+    print(stats)
+
     def play_game(self):
         print(f"Welcome to the Tuple Out Dice Game! First to {self.target_score} points wins.\n")
         while True:
