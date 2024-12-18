@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class TupleOutGame:
     """
-    A turn-based dice game where players aim to avoid "Tuple Out" and accumulate scores. 
+    A turn-based dice game where players aim to avoid "Tuple Out" and accumulate scores.
     The first player to reach the target score wins.
     """
     def __init__(self, players, target_score=50):
@@ -18,9 +18,9 @@ class TupleOutGame:
         """
         self.players = players
         self.target_score = target_score
-        self.scores = {player: 0 for player in players}  # Track total scores
-        self.history = []  # Store (player, cumulative score) per turn
-        self.current_player_index = 0  # Track the current player
+        self.scores = {player: 0 for player in players}  # Track cumulative scores
+        self.history = []  # Each element will be a dict: {'player':..., 'turn_score':..., 'cumulative_score':..., 'tuple_out':...}
+        self.current_player_index = 0
 
     def roll_dice(self):
         """
@@ -48,32 +48,51 @@ class TupleOutGame:
         # Check for Tuple Out (all dice match)
         counts = {x: dice.count(x) for x in set(dice)}
         if 3 in counts.values():
+            # Tuple Out
             print("Tuple Out! No points this turn.")
-            self.history.append((player, self.scores[player]))  # Log current cumulative score
+            turn_score = 0
+            self.history.append({
+                'player': player,
+                'turn_score': turn_score,
+                'cumulative_score': self.scores[player],
+                'tuple_out': True
+            })
             return 0
 
-        # Allow rerolling of unfixed dice
-        fixed_dice = [die for die, count in counts.items() if count == 2]
-        print(f"Fixed dice: {fixed_dice}")
+        # Identify fixed dice (those forming a pair)
+        # If there's a pair, store that value in fixed_dice
+        fixed_dice_values = []
+        for val, cnt in counts.items():
+            if cnt == 2:
+                fixed_dice_values.append(val)
 
+        if fixed_dice_values:
+            print(f"Fixed dice values: {fixed_dice_values}")
+        else:
+            print("No fixed dice values.")
+
+        # Reroll loop
         while True:
             reroll_input = input("Do you want to reroll? (yes/no): ").strip().lower()
             if reroll_input == "no":
                 break
-            # Reroll only dice that are not fixed
-            dice = [
-                random.randint(1, 6) if dice.count(d) < 2 else d
-                for d in dice
-            ]
+            # Reroll only dice not matching the fixed_dice_values
+            dice = [d if d in fixed_dice_values else random.randint(1, 6) for d in dice]
             print(f"Re-rolled dice: {dice}")
 
-        # Calculate score
-        total_score = sum(dice)
-        self.scores[player] += total_score
-        self.history.append((player, self.scores[player]))  # Log updated cumulative score
-        print(f"{player} scores {total_score} points!")
+        # Calculate score for this turn
+        turn_score = sum(dice)
+        self.scores[player] += turn_score
+        print(f"{player} scores {turn_score} points this turn! (Cumulative: {self.scores[player]})")
 
-        return total_score
+        self.history.append({
+            'player': player,
+            'turn_score': turn_score,
+            'cumulative_score': self.scores[player],
+            'tuple_out': False
+        })
+
+        return turn_score
 
     def check_winner(self):
         """
@@ -91,14 +110,11 @@ class TupleOutGame:
         """
         Generate a line graph of player scores over the game turns using Seaborn.
         """
-        # Prepare data
-        players = [entry[0] for entry in self.history]
-        scores = [entry[1] for entry in self.history]
-        turns = list(range(1, len(scores) + 1))
+        df = pd.DataFrame(self.history)
+        df["Turn"] = df.index + 1
 
-        # Plot the scores
         plt.figure(figsize=(10, 6))
-        sns.lineplot(x=turns, y=scores, hue=players, palette="tab10")
+        sns.lineplot(data=df, x="Turn", y="cumulative_score", hue="player", palette="tab10")
         plt.title("Player Scores Over Turns")
         plt.xlabel("Turn Number")
         plt.ylabel("Cumulative Score")
@@ -110,16 +126,15 @@ class TupleOutGame:
         Summarize the game statistics using Pandas, including total turns, average score,
         and the number of 'Tuple Outs' for each player.
         """
-        # Create a DataFrame for the game history
-        df = pd.DataFrame(self.history, columns=["Player", "Total_Score"])
-        stats = df.groupby("Player").agg(
-            Turns_Played=("Player", "count"),
-            Total_Score=("Total_Score", "max"),
-            Average_Score=("Total_Score", "mean"),
-            Tuple_Outs=("Total_Score", lambda x: (x == 0).sum())
+        df = pd.DataFrame(self.history)
+        # Aggregate stats
+        stats = df.groupby("player").agg(
+            Turns_Played=("player", "count"),
+            Total_Score=("cumulative_score", "max"),
+            Average_Score=("turn_score", "mean"),
+            Tuple_Outs=("tuple_out", "sum")  # since tuple_out is boolean, sum will count True values
         )
 
-        # Display the stats summary
         print("\nGame Summary Statistics:")
         print(stats)
 
@@ -143,9 +158,10 @@ class TupleOutGame:
 
 
 # Game setup
-if __name__ == "__main__":
+
     print("Welcome to Tuple Out Dice Game!")
     num_players = int(input("Enter the number of players: "))
     players = [input(f"Enter name for Player {i + 1}: ") for i in range(num_players)]
     game = TupleOutGame(players)
     game.play_game()
+
